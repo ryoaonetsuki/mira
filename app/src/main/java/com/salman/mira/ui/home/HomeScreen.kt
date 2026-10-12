@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,6 +60,7 @@ private data class QuickAction(
 
 private val quickActions = listOf(
     QuickAction("Message", Icons.Filled.Message),
+    QuickAction("Macros", Icons.Filled.PlayArrow),
     QuickAction("Reminder", Icons.Filled.Alarm),
     QuickAction("Music", Icons.Filled.MusicNote),
     QuickAction("Camera", Icons.Filled.CameraAlt),
@@ -67,7 +69,11 @@ private val quickActions = listOf(
 
 /** Home: greeting, assistant orb, quick actions. Professional, no emojis. */
 @Composable
-fun HomeScreen(onOpenChat: () -> Unit, onOpenSettings: () -> Unit = {}) {
+fun HomeScreen(
+    onOpenChat: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenMacros: () -> Unit = {},
+) {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {
         in 5..11 -> "Good morning"
@@ -131,7 +137,10 @@ fun HomeScreen(onOpenChat: () -> Unit, onOpenSettings: () -> Unit = {}) {
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(quickActions) { action ->
-                QuickActionCard(action, onClick = onOpenChat)
+                QuickActionCard(
+                    action,
+                    onClick = { if (action.label == "Macros") onOpenMacros() else onOpenChat() },
+                )
             }
         }
     }
