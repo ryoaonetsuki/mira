@@ -43,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.salman.mira.automation.MacroExecutor
+import com.salman.mira.automation.MacroStore
 import com.salman.mira.core.FastPath
 import com.salman.mira.data.MemoryStore
 import com.salman.mira.llm.LlmConfig
@@ -85,6 +87,7 @@ fun ChatScreen() {
     val scope = rememberCoroutineScope()
     val voice = remember { MiraVoice(context) }
     val listener = remember { MiraListener(context) }
+    val macroStore = remember { MacroStore(context) }
     DisposableEffect(Unit) { onDispose { voice.shutdown(); listener.destroy() } }
 
     suspend fun scrollToEnd() {
@@ -104,6 +107,25 @@ fun ChatScreen() {
         sending = true
         scope.launch {
             scrollToEnd()
+            // Macro trigger: "run <name>" or a trigger phrase.
+            val macro = macroStore.matchTrigger(clean)
+                ?: clean.removePrefix("run ").removePrefix("চালাও ").trim().let { q ->
+                    macroStore.list().firstOrNull { it.name.equals(q, ignoreCase = true) }
+                }
+            if (macro != null) {
+                messages.add(UiMessage("Running \"${macro.name}\"…", fromUser = false))
+                val res = MacroExecutor.run(macro)
+                val done = when (res) {
+                    is MacroExecutor.Result.Ok -> "\"${macro.name}\" done."
+                    is MacroExecutor.Result.Failed -> "Couldn't finish \"${macro.name}\" (step ${res.stepIndex + 1})."
+                    MacroExecutor.Result.NoService -> "Enable Mira's accessibility service first (Settings)."
+                }
+                messages.add(UiMessage(done, fromUser = false))
+                speakReply(done)
+                sending = false
+                scrollToEnd()
+                return@launch
+            }
             // Fast-path: instant local answer, no LLM.
             val fast = FastPath.answer(clean)
             if (fast != null) {
