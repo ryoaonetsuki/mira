@@ -1,7 +1,6 @@
 workflows:
   android-debug:
     name: Android Debug APK
-    instance_type: linux
     max_build_duration: 60
     environment:
       java: 17
