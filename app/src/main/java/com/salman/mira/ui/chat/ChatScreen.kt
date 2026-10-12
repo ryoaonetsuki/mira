@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
@@ -29,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -40,9 +43,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.salman.mira.core.FastPath
 import com.salman.mira.data.MemoryStore
 import com.salman.mira.llm.LlmConfig
 import com.salman.mira.llm.LlmProviders
+import com.salman.mira.voice.MiraListener
+import com.salman.mira.voice.MiraVoice
 import com.salman.mira.onboarding.LLM_API_KEY
 import com.salman.mira.onboarding.LLM_BASE_URL
 import com.salman.mira.onboarding.LLM_MODEL
@@ -73,11 +79,21 @@ fun ChatScreen() {
     }
     var input by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var listening by remember { mutableStateOf(false) }
+    var voiceOn by remember { mutableStateOf(true) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val voice = remember { MiraVoice(context) }
+    val listener = remember { MiraListener(context) }
+    DisposableEffect(Unit) { onDispose { voice.shutdown(); listener.destroy() } }
 
     suspend fun scrollToEnd() {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    }
+
+    fun speakReply(text: String) {
+        voice.enabled = voiceOn
+        if (voiceOn) voice.speak(text)
     }
 
     fun send(text: String) {
@@ -88,6 +104,19 @@ fun ChatScreen() {
         sending = true
         scope.launch {
             scrollToEnd()
+            // Fast-path: instant local answer, no LLM.
+            val fast = FastPath.answer(clean)
+            if (fast != null) {
+                messages.add(UiMessage(fast, fromUser = false))
+                runCatching {
+                    memory.appendHistory("user", clean)
+                    memory.appendHistory("model", fast)
+                }
+                speakReply(fast)
+                sending = false
+                scrollToEnd()
+                return@launch
+            }
             try {
                 val config = context.dataStore.data.map { p ->
                     LlmConfig(
@@ -110,6 +139,7 @@ fun ChatScreen() {
                         memory.appendHistory("user", clean)
                         memory.appendHistory("model", finalReply)
                     }
+                    speakReply(finalReply)
                 }
             } catch (e: Exception) {
                 messages.add(UiMessage("Error: ${e.message?.take(220) ?: "unknown"}", fromUser = false))
@@ -117,6 +147,20 @@ fun ChatScreen() {
             sending = false
             scrollToEnd()
         }
+    }
+
+    fun startVoiceInput() {
+        if (!listener.isAvailable) {
+            messages.add(UiMessage("Voice input isn't available on this device.", fromUser = false))
+            return
+        }
+        listener.onResult = { heard -> send(heard) }
+        listener.onError = { err ->
+            messages.add(UiMessage(err, fromUser = false))
+            scope.launch { scrollToEnd() }
+        }
+        listener.onListening = { listening = it }
+        listener.startListening()
     }
 
     Column(
@@ -140,11 +184,22 @@ fun ChatScreen() {
             ) {
                 Text("M", style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onPrimary))
             }
-            Column(modifier = Modifier.padding(start = 12.dp)) {
+            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
                 Text("Mira", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (sending) "typing…" else "Online",
+                    when {
+                        listening -> "listening…"
+                        sending -> "typing…"
+                        else -> "Online"
+                    },
                     style = MaterialTheme.typography.bodyMedium.copy(color = MiraTextSecondary),
+                )
+            }
+            IconButton(onClick = { voiceOn = !voiceOn; if (!voiceOn) voice.stop() }) {
+                Icon(
+                    imageVector = if (voiceOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                    contentDescription = if (voiceOn) "Mute voice" else "Unmute voice",
+                    tint = MiraTextSecondary,
                 )
             }
         }
@@ -190,8 +245,8 @@ fun ChatScreen() {
                 ),
             )
             IconButton(
-                onClick = { if (input.isBlank()) { /* TODO: voice input */ } else send(input) },
-                enabled = !sending,
+                onClick = { if (input.isBlank()) startVoiceInput() else send(input) },
+                enabled = !sending && !listening,
             ) {
                 Icon(
                     imageVector = if (input.isBlank()) Icons.Filled.Mic else Icons.AutoMirrored.Filled.Send,
