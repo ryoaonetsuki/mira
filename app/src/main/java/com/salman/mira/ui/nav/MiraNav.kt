@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.salman.mira.ui.chat.ChatScreen
 import com.salman.mira.ui.home.HomeScreen
+import com.salman.mira.ui.macros.MacrosScreen
 import com.salman.mira.ui.memories.MemoriesScreen
 import com.salman.mira.ui.scan.ScanScreen
 import com.salman.mira.ui.settings.SettingsScreen
@@ -89,7 +90,9 @@ fun MiraNav(onMicTap: () -> Unit = {}, onReset: () -> Unit = {}) {
                 "home" -> HomeScreen(
                     onOpenChat = { currentRoute = "chat" },
                     onOpenSettings = { currentRoute = "settings" },
+                    onOpenMacros = { currentRoute = "macros" },
                 )
+                "macros" -> MacrosScreen()
                 "scan" -> ScanScreen()
                 "memories" -> MemoriesScreen()
                 "chat" -> ChatScreen()
