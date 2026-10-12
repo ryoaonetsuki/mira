@@ -66,4 +66,63 @@ class MiraAccessibilityService : AccessibilityService() {
         }
         return null
     }
+
+    /** Launch an app by its display name (best effort via launcher query). */
+    fun openApp(appName: String): Boolean {
+        val pm = packageManager
+        val intent = pm.getLaunchIntentForPackage(
+            pm.getInstalledApplications(0)
+                .firstOrNull { it.loadLabel(pm).toString().contains(appName, ignoreCase = true) }
+                ?.packageName ?: return false
+        ) ?: return false
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        return true
+    }
+
+    /** Wait until the given text appears on screen (polling). */
+    fun waitForText(text: String, timeoutMs: Long): Boolean {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            val root = rootInActiveWindow
+            if (root != null &&
+                (root.findAccessibilityNodeInfosByText(text).isNotEmpty() ||
+                        findByDescription(root, text) != null)
+            ) return true
+            Thread.sleep(400)
+        }
+        return false
+    }
+
+    fun pressBack(): Boolean =
+        performGlobalAction(GLOBAL_ACTION_BACK)
+
+    fun scrollDown(): Boolean {
+        val root = rootInActiveWindow ?: return false
+        return scrollRecursive(root)
+    }
+
+    private fun scrollRecursive(node: AccessibilityNodeInfo): Boolean {
+        if (node.isScrollable &&
+            node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+        ) return true
+        for (i in 0 until node.childCount) {
+            node.getChild(i)?.let { if (scrollRecursive(it)) return true }
+        }
+        return false
+    }
+
+    companion object {
+        @Volatile var instance: MiraAccessibilityService? = null
+            private set
+    }
+
+    override fun onServiceConnected() {
+        instance = this
+    }
+
+    override fun onUnbind(intent: android.content.Intent?): Boolean {
+        if (instance == this) instance = null
+        return super.onUnbind(intent)
+    }
 }
