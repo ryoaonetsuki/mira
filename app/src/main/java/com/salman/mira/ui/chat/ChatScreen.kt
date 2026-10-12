@@ -107,6 +107,21 @@ fun ChatScreen() {
         sending = true
         scope.launch {
             scrollToEnd()
+            // "remember X is Y" → save fact locally.
+            val remembered = FastPath.parseRemember(clean)
+            if (remembered != null) {
+                runCatching { memory.putFact(remembered.first, remembered.second) }
+                val confirm = "Got it — I'll remember: ${remembered.first} = ${remembered.second}."
+                messages.add(UiMessage(confirm, fromUser = false))
+                runCatching {
+                    memory.appendHistory("user", clean)
+                    memory.appendHistory("model", confirm)
+                }
+                speakReply(confirm)
+                sending = false
+                scrollToEnd()
+                return@launch
+            }
             // Macro trigger: "run <name>" or a trigger phrase.
             val macro = macroStore.matchTrigger(clean)
                 ?: clean.removePrefix("run ").removePrefix("চালাও ").trim().let { q ->
