@@ -42,6 +42,7 @@ import com.salman.mira.ui.chat.ChatScreen
 import com.salman.mira.ui.home.HomeScreen
 import com.salman.mira.ui.macros.MacrosScreen
 import com.salman.mira.ui.memories.MemoriesScreen
+import com.salman.mira.ui.skills.SkillsScreen
 import com.salman.mira.ui.scan.ScanScreen
 import com.salman.mira.ui.settings.SettingsScreen
 import com.salman.mira.ui.theme.MiraPrimary
@@ -91,8 +92,10 @@ fun MiraNav(onMicTap: () -> Unit = {}, onReset: () -> Unit = {}) {
                     onOpenChat = { currentRoute = "chat" },
                     onOpenSettings = { currentRoute = "settings" },
                     onOpenMacros = { currentRoute = "macros" },
+                    onOpenSkills = { currentRoute = "skills" },
                 )
                 "macros" -> MacrosScreen()
+                "skills" -> SkillsScreen()
                 "scan" -> ScanScreen()
                 "memories" -> MemoriesScreen()
                 "chat" -> ChatScreen()
