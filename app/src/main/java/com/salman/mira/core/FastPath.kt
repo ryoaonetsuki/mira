@@ -35,6 +35,16 @@ object FastPath {
         return null
     }
 
+    /** "remember X is Y" / "মনে রাখো X হলো Y" → Pair(key, value), or null. */
+    fun parseRemember(input: String): Pair<String, String>? {
+        val t = input.trim()
+        val en = Regex("(?i)^remember\\s+(.+?)\\s+is\\s+(.+)$").find(t)
+        if (en != null) return en.groupValues[1].trim() to en.groupValues[2].trim()
+        val bn = Regex("^মনে রাখো\\s+(.+?)\\s+(?:হলো|হচ্ছে)\\s+(.+)$").find(t)
+        if (bn != null) return bn.groupValues[1].trim() to bn.groupValues[2].trim()
+        return null
+    }
+
     private fun isBangla(t: String): Boolean =
         t.any { it in '\u0980'..'\u09FF' }
 }
