@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
@@ -61,6 +62,7 @@ private data class QuickAction(
 private val quickActions = listOf(
     QuickAction("Message", Icons.Filled.Message),
     QuickAction("Macros", Icons.Filled.PlayArrow),
+    QuickAction("Skills", Icons.Filled.Extension),
     QuickAction("Reminder", Icons.Filled.Alarm),
     QuickAction("Music", Icons.Filled.MusicNote),
     QuickAction("Camera", Icons.Filled.CameraAlt),
@@ -73,6 +75,7 @@ fun HomeScreen(
     onOpenChat: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onOpenMacros: () -> Unit = {},
+    onOpenSkills: () -> Unit = {},
 ) {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {
@@ -139,7 +142,11 @@ fun HomeScreen(
             items(quickActions) { action ->
                 QuickActionCard(
                     action,
-                    onClick = { if (action.label == "Macros") onOpenMacros() else onOpenChat() },
+                    onClick = when (action.label) {
+                        "Macros" -> onOpenMacros
+                        "Skills" -> onOpenSkills
+                        else -> onOpenChat
+                    },
                 )
             }
         }
